@@ -12,12 +12,11 @@ const getUserById = async (id: number): Promise<UserWithNoPassword | null> => {
     SELECT
       Users.user_id,
       Users.username,
-      Users.email,
       Users.created_at,
       UserLevels.level_name
     FROM Users
     JOIN UserLevels
-    ON Users.user_level_id = UserLevels.level_id
+    ON Users.user_level = UserLevels.level_id
     WHERE Users.user_id = ?
   `,
       [id]
@@ -41,12 +40,7 @@ const getAllUsers = async (): Promise<UserWithNoPassword[] | null> => {
     SELECT
       Users.user_id,
       Users.username,
-      Users.email,
-      Users.created_at,
-      UserLevels.level_name
-    FROM Users
-    JOIN UserLevels
-    ON Users.user_level_id = UserLevels.level_id
+      Users.created_at FROM Users
   `
     );
 
@@ -69,12 +63,11 @@ const getUserByEmail = async (email: string): Promise<UserWithLevel | null> => {
       Users.user_id,
       Users.username,
       Users.password,
-      Users.email,
       Users.created_at,
       UserLevels.level_name
     FROM Users
     JOIN UserLevels
-    ON Users.user_level_id = UserLevels.level_id
+    ON Users.user_level = UserLevels.level_id
     WHERE Users.email = ?
   `,
       [email]
@@ -99,12 +92,11 @@ const getUserByUsername = async (
       Users.user_id,
       Users.username,
       Users.password,
-      Users.email,
       Users.created_at,
       UserLevels.level_name
     FROM Users
     JOIN UserLevels
-    ON Users.user_level_id = UserLevels.level_id
+    ON Users.user_level = UserLevels.level_id
     WHERE Users.username = ?
   `,
       [username]
@@ -123,10 +115,10 @@ const createUser = async (user: User): Promise<UserWithNoPassword | null> => {
   try {
     const result = await promisePool.execute<ResultSetHeader>(
       `
-    INSERT INTO Users (username, password, email, user_level_id)
-    VALUES (?, ?, ?, ?)
+    INSERT INTO Users (username, password, user_level)
+    VALUES (?, ?, ?)
   `,
-      [user.username, user.password, user.email, 2]
+      [user.username, user.password, 2]
     );
 
     if (result[0].affectedRows === 0) {

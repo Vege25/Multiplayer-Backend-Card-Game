@@ -1,4 +1,5 @@
 import {ErrorResponse} from '@sharedTypes/MessageTypes';
+import {ExtendedWebSocket} from '../websocket/types';
 
 const fetchData = async <T>(
   url: string,

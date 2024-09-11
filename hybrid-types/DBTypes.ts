@@ -1,6 +1,13 @@
-type UserLevel = {
-  level_id: number;
-  level_name: 'Admin' | 'User' | 'Guest';
+type Rank = {
+  rank_id: number;
+  rank_name: 'Bronze' | 'Silver' | 'Gold' | 'Platinum' | 'Diamond' | 'Master';
+  required_experience: number;
+  created_at: Date | string;
+};
+type CardRarity = {
+  rarity_id: number;
+  rarity_name: 'common' | 'rare' | 'legendary';
+  created_at: Date | string;
 };
 
 type User = {
@@ -8,110 +15,133 @@ type User = {
   username: string;
   password: string;
   email: string;
-  user_level_id: number;
+  in_game_currency: number;
+  experience: number;
+  user_rank_id: number;
   created_at: Date | string;
 };
 
-type MediaItem = {
-  media_id: number;
-  user_id: number;
-  filename: string;
-  thumbnail: string;
-  filesize: number;
-  media_type: string;
-  title: string;
+type Lobby = {
+  lobby_id: number;
+  creator_id: number;
+  opponent_id: number;
+  status: 'waiting' | 'ongoing' | 'finished';
+  created_at: Date | string;
+};
+
+type Card = {
+  card_id: number;
+  card_name: string;
+  card_type: 'troop' | 'spell' | 'structure' | 'item';
+  cost: number;
+  north: number;
+  east: number;
+  south: number;
+  west: number;
   description: string | null;
+  rarity_id: number;
+  shiny: boolean;
   created_at: Date | string;
-  app_id: string;
 };
 
-type Comment = {
-  comment_id: number;
-  media_id: number;
+type UserCard = {
+  user_card_id: number;
   user_id: number;
-  comment_text: string;
-  created_at: Date;
+  card_id: number;
+  quantity: number;
+  created_at: Date | string;
 };
 
-type Like = {
-  like_id: number;
-  media_id: number;
+type Deck = {
+  deck_id: number;
   user_id: number;
-  created_at: Date;
+  deck_name: string;
+  is_active: boolean;
+  created_at: Date | string;
 };
 
-type Rating = {
-  rating_id: number;
-  media_id: number;
-  user_id: number;
-  rating_value: number;
-  created_at: Date;
+type DeckCard = {
+  deck_card_id: number;
+  deck_id: number;
+  card_id: number;
+  created_at: Date | string;
 };
 
-type Tag = {
-  tag_id: number;
-  tag_name: string;
+type Trade = {
+  trade_id: number;
+  requester_id: number;
+  recipient_id: number;
+  status: 'pending' | 'accepted' | 'rejected';
+  created_at: Date | string;
 };
 
-type MediaItemTag = {
-  media_id: number;
-  tag_id: number;
+type TradeCard = {
+  trade_card_id: number;
+  trade_id: number;
+  card_id: number;
+  quantity: number;
+  created_at: Date | string;
 };
 
-type TagResult = MediaItemTag & Tag;
-
-type UploadResult = {
-  message: string;
-  data?: {
-    image: string;
-  };
+type Game = {
+  game_id: number;
+  lobby_id: number;
+  player1_id: number;
+  player2_id: number;
+  player1_mana: number;
+  player2_mana: number;
+  recent_played_card: number;
+  player1_troops_killed: number;
+  player2_troops_killed: number;
+  player1_structures_killed: number;
+  player2_structures_killed: number;
+  game_status: 'ongoing' | 'finished';
+  current_turn: number;
+  turn_number: number;
+  created_at: Date | string;
 };
 
-type MostLikedMedia = Pick<
-  MediaItem,
-  | 'media_id'
-  | 'filename'
-  | 'filesize'
-  | 'media_type'
-  | 'title'
-  | 'description'
-  | 'created_at'
-> &
-  Pick<User, 'user_id' | 'username' | 'email' | 'created_at'> & {
-    likes_count: bigint;
-  };
-
-// type gymnastics to get rid of user_level_id from User type and replace it with level_name from UserLevel type
-type UserWithLevel = Omit<User, 'user_level_id'> &
-  Pick<UserLevel, 'level_name'>;
-
-type UserWithNoPassword = Omit<UserWithLevel, 'password'>;
-
-type TokenContent = Pick<User, 'user_id'> & Pick<UserLevel, 'level_name'>;
-
-type MediaItemWithOwner = MediaItem & Pick<User, 'username'>;
-
-// for upload server
-type FileInfo = {
-  filename: string;
-  user_id: number;
+type GameHand = {
+  game_hand_id: number;
+  game_id: number;
+  card_id: number;
+  owner_id: number;
+  created_at: Date | string;
 };
+
+type GameGrid = {
+  game_grid_id: number;
+  game_id: number;
+  card_id: number;
+  owner_id: number;
+  grid_x: number;
+  grid_y: number;
+  is_just_placed: boolean;
+  created_at: Date | string;
+};
+
+// User with rank and user_rank_id removed
+type UserWithRank = Omit<User, 'user_rank_id'> & { rank: Rank };
+
+type UserWithNoPassword = Omit<UserWithRank, 'password'>;
+
+type TokenContent = Pick<User, 'user_id'> & Pick<Rank, 'rank_name'>;
 
 export type {
-  UserLevel,
   User,
-  MediaItem,
-  Comment,
-  Like,
-  Rating,
-  Tag,
-  MediaItemTag,
-  TagResult,
-  UploadResult,
-  MostLikedMedia,
-  UserWithLevel,
+  Rank,
+  CardRarity,
+  Lobby,
+  Card,
+  UserCard,
+  Deck,
+  DeckCard,
+  Trade,
+  TradeCard,
+  Game,
+  GameHand,
+  GameGrid,
+  UserWithRank,
   UserWithNoPassword,
   TokenContent,
-  MediaItemWithOwner,
-  FileInfo,
 };

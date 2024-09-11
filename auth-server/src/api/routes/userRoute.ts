@@ -49,6 +49,10 @@ const router = express.Router();
  */
 router.get('/', userListGet);
 
+router.get('/test', (req, res) => {
+  res.send({turn: 1});
+});
+
 /**
  * @api {post} /users Create User
  * @apiName CreateUser
@@ -83,7 +87,6 @@ router.post(
   '/',
   body('username').notEmpty().isString().escape().trim().isLength({min: 3}),
   body('password').notEmpty().isString().escape().trim().isLength({min: 5}),
-  body('email').isEmail(),
   userPost
 );
 

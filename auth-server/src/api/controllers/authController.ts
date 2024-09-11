@@ -45,7 +45,6 @@ const login = async (
     const outUser: Omit<UserWithLevel, 'password'> = {
       user_id: user.user_id,
       username: user.username,
-      email: user.email,
       created_at: user.created_at,
       level_name: user.level_name,
     };
