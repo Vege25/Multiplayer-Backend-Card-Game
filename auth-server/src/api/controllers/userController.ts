@@ -83,8 +83,6 @@ const userPost = async (
     const user = req.body;
     user.password = await bcrypt.hash(user.password, salt);
 
-    console.log(user);
-
     const newUser = await createUser(user);
     console.log('newUser', newUser);
     if (!newUser) {
@@ -156,84 +154,6 @@ const userDelete = async (
     console.log('user from token', userFromToken);
 
     const result = await deleteUser(userFromToken.user_id);
-
-    if (!result) {
-      next(new CustomError('User not found', 404));
-      return;
-    }
-
-    res.json(result);
-  } catch (error) {
-    next(new CustomError((error as Error).message, 500));
-  }
-};
-
-const userPutAsAdmin = async (
-  req: Request<{id: string}, {}, User>,
-  res: Response<UserResponse, {user: TokenContent}>,
-  next: NextFunction
-) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    const messages: string = errors
-      .array()
-      .map((error) => `${error.msg}: ${error.param}`)
-      .join(', ');
-    console.log('userPutAsAdmin validation', messages);
-    next(new CustomError(messages, 400));
-    return;
-  }
-
-  try {
-    if (res.locals.user.level_name !== 'Admin') {
-      next(new CustomError('You are not authorized to do this', 401));
-      return;
-    }
-    const user = req.body;
-    if (user.password) {
-      user.password = await bcrypt.hash(user.password, salt);
-    }
-
-    const result = await modifyUser(user, Number(req.params.id));
-
-    if (!result) {
-      next(new CustomError('User not found', 404));
-      return;
-    }
-
-    const response: UserResponse = {
-      message: 'user updated',
-      user: result,
-    };
-    res.json(response);
-  } catch (error) {
-    next(new CustomError((error as Error).message, 500));
-  }
-};
-
-const userDeleteAsAdmin = async (
-  req: Request<{id: string}>,
-  res: Response<UserDeleteResponse, {user: TokenContent}>,
-  next: NextFunction
-) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    const messages: string = errors
-      .array()
-      .map((error) => `${error.msg}: ${error.param}`)
-      .join(', ');
-    console.log('userDeleteAsAdmin validation', messages);
-    next(new CustomError(messages, 400));
-    return;
-  }
-
-  try {
-    if (res.locals.user.level_name !== 'Admin') {
-      next(new CustomError('You are not authorized to do this', 401));
-      return;
-    }
-
-    const result = await deleteUser(Number(req.params.id));
 
     if (!result) {
       next(new CustomError('User not found', 404));
@@ -321,8 +241,6 @@ export {
   userPost,
   userPut,
   userDelete,
-  userPutAsAdmin,
-  userDeleteAsAdmin,
   checkToken,
   checkEmailExists,
   checkUsernameExists,

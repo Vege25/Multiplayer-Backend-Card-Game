@@ -31,36 +31,45 @@ const authenticate = async (
   next: NextFunction
 ) => {
   try {
-    const bearer = req.headers.authorization;
-    if (!bearer) {
-      next(new CustomError('No token provided', 401));
-      return;
+    const authorizationHeader = req.headers.authorization;
+
+    // Ensure the authorization header exists and is in the correct format
+    if (!authorizationHeader || !authorizationHeader.startsWith('Bearer ')) {
+      return next(new CustomError('No token provided', 401));
     }
 
-    const token = bearer.split(' ')[1];
+    // Extract the token from the 'Bearer' scheme
+    const token = authorizationHeader.split(' ')[1];
 
     if (!token) {
-      next(new CustomError('No token provided', 401));
-      return;
+      return next(new CustomError('No token provided', 401));
     }
 
+    // Verify and decode the JWT token
     const userFromToken = jwt.verify(
       token,
       process.env.JWT_SECRET as string
     ) as TokenContent;
 
+    // Fetch user based on decoded user_id
     const user = await getUserById(userFromToken.user_id);
 
     if (!user) {
-      next(new CustomError('Token not valid', 403));
-      return;
+      return next(new CustomError('Token not valid', 403));
     }
 
+    // Attach user to response locals for further use in the request lifecycle
     res.locals.user = user;
 
     next();
   } catch (error) {
-    next(new CustomError((error as Error).message, 400));
+    // Check if the error is related to token expiration
+    if ((error as Error).name === 'TokenExpiredError') {
+      return next(new CustomError('Token expired', 401));
+    }
+
+    // General error handling for token validation failure
+    return next(new CustomError('Invalid token', 400));
   }
 };
 

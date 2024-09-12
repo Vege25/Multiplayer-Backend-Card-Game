@@ -1,131 +1,117 @@
-import {ResultSetHeader, RowDataPacket} from 'mysql2';
-import {promisePool} from '../../lib/db';
-import {UserWithLevel, User, UserWithNoPassword} from '@sharedTypes/DBTypes';
+import {PoolClient, QueryResult} from 'pg';
+import {UserWithRank, User, UserWithNoPassword} from '@sharedTypes/DBTypes';
 import {UserDeleteResponse} from '@sharedTypes/MessageTypes';
+import pool from '../../lib/db';
 
+// Get user by ID
 const getUserById = async (id: number): Promise<UserWithNoPassword | null> => {
   try {
-    const [rows] = await promisePool.execute<
-      RowDataPacket[] & UserWithNoPassword[]
-    >(
+    const result: QueryResult<UserWithNoPassword> = await pool.query(
       `
-    SELECT
-      Users.user_id,
-      Users.username,
-      Users.created_at,
-      UserLevels.level_name
-    FROM Users
-    JOIN UserLevels
-    ON Users.user_level = UserLevels.level_id
-    WHERE Users.user_id = ?
-  `,
+      SELECT
+        u.user_id,
+        u.username,
+        u.created_at,
+        r.rank_name
+      FROM users u
+      JOIN ranks r ON u.rank_id = r.rank_id
+      WHERE u.user_id = $1
+      `,
       [id]
     );
-    if (rows.length === 0) {
-      return null;
-    }
-    return rows[0];
+    return result.rowCount! > 0 ? result.rows[0] : null; // Asserting rowCount is not null
   } catch (e) {
     console.error('getUserById error', (e as Error).message);
     throw new Error((e as Error).message);
   }
 };
 
+// Get all users
 const getAllUsers = async (): Promise<UserWithNoPassword[] | null> => {
   try {
-    const [rows] = await promisePool.execute<
-      RowDataPacket[] & UserWithNoPassword[]
-    >(
+    const result: QueryResult<UserWithNoPassword> = await pool.query(
       `
-    SELECT
-      Users.user_id,
-      Users.username,
-      Users.created_at FROM Users
-  `
+      SELECT
+        user_id,
+        username,
+        created_at
+      FROM users
+      `
     );
-
-    if (rows.length === 0) {
-      return null;
-    }
-
-    return rows;
+    return result.rowCount! > 0 ? result.rows : null;
   } catch (e) {
     console.error('getAllUsers error', (e as Error).message);
     throw new Error((e as Error).message);
   }
 };
 
-const getUserByEmail = async (email: string): Promise<UserWithLevel | null> => {
+// Get user by email
+const getUserByEmail = async (email: string): Promise<UserWithRank | null> => {
   try {
-    const [rows] = await promisePool.execute<RowDataPacket[] & UserWithLevel[]>(
+    const result: QueryResult<UserWithRank> = await pool.query(
       `
-    SELECT
-      Users.user_id,
-      Users.username,
-      Users.password,
-      Users.created_at,
-      UserLevels.level_name
-    FROM Users
-    JOIN UserLevels
-    ON Users.user_level = UserLevels.level_id
-    WHERE Users.email = ?
-  `,
+      SELECT
+        u.user_id,
+        u.username,
+        u.password,
+        u.created_at,
+        r.rank_name
+      FROM users u
+      JOIN ranks r ON u.rank_id = r.rank_id
+      WHERE u.email = $1
+      `,
       [email]
     );
-    if (rows.length === 0) {
-      return null;
-    }
-    return rows[0];
+    return result.rowCount! > 0 ? result.rows[0] : null;
   } catch (e) {
     console.error('getUserByEmail error', (e as Error).message);
     throw new Error((e as Error).message);
   }
 };
 
+// Get user by username
 const getUserByUsername = async (
   username: string
-): Promise<UserWithLevel | null> => {
+): Promise<UserWithRank | null> => {
   try {
-    const [rows] = await promisePool.execute<RowDataPacket[] & UserWithLevel[]>(
+    const result: QueryResult<UserWithRank> = await pool.query(
       `
-    SELECT
-      Users.user_id,
-      Users.username,
-      Users.password,
-      Users.created_at,
-      UserLevels.level_name
-    FROM Users
-    JOIN UserLevels
-    ON Users.user_level = UserLevels.level_id
-    WHERE Users.username = ?
-  `,
+      SELECT
+        u.user_id,
+        u.username,
+        u.password,
+        u.created_at,
+        COALESCE(r.rank_name, 'Unranked') AS rank_name
+      FROM users u
+      LEFT JOIN ranks r ON u.rank_id = r.rank_id
+      WHERE u.username = $1
+      `,
       [username]
     );
-    if (rows.length === 0) {
-      return null;
-    }
-    return rows[0];
+    return result.rowCount! > 0 ? result.rows[0] : null;
   } catch (e) {
     console.error('getUserByUsername error', (e as Error).message);
     throw new Error((e as Error).message);
   }
 };
 
+// Create a new user
 const createUser = async (user: User): Promise<UserWithNoPassword | null> => {
   try {
-    const result = await promisePool.execute<ResultSetHeader>(
+    const result: QueryResult = await pool.query(
       `
-    INSERT INTO Users (username, password, user_level)
-    VALUES (?, ?, ?)
-  `,
-      [user.username, user.password, 2]
+      INSERT INTO users (username, password, email, rank_id)
+      VALUES ($1, $2, $3, 1) -- Default rank_id 1 (bronze)
+      RETURNING user_id
+      `,
+      [user.username, user.password, user.email]
     );
 
-    if (result[0].affectedRows === 0) {
+    if (result.rowCount! === 0) {
       return null;
     }
 
-    const newUser = await getUserById(result[0].insertId);
+    const newUser = await getUserById(result.rows[0].user_id);
     return newUser;
   } catch (e) {
     console.error('createUser error', (e as Error).message);
@@ -133,76 +119,68 @@ const createUser = async (user: User): Promise<UserWithNoPassword | null> => {
   }
 };
 
+// Modify user information
 const modifyUser = async (
   user: User,
   id: number
 ): Promise<UserWithNoPassword | null> => {
   try {
-    const sql = promisePool.format(
+    const setClause = Object.keys(user)
+      .map((key, i) => `${key} = $${i + 1}`)
+      .join(', ');
+    const values = Object.values(user);
+
+    const result: QueryResult = await pool.query(
       `
-      UPDATE Users
-      SET ?
-      WHERE user_id = ?
+      UPDATE users
+      SET ${setClause}
+      WHERE user_id = $${values.length + 1}
       `,
-      [user, id]
+      [...values, id]
     );
 
-    const result = await promisePool.execute<ResultSetHeader>(sql);
-
-    if (result[0].affectedRows === 0) {
+    if (result.rowCount! === 0) {
       return null;
     }
 
-    const newUser = await getUserById(id);
-    return newUser;
+    const updatedUser = await getUserById(id);
+    return updatedUser;
   } catch (e) {
     console.error('modifyUser error', (e as Error).message);
     throw new Error((e as Error).message);
   }
 };
 
+// Delete user
 const deleteUser = async (id: number): Promise<UserDeleteResponse | null> => {
-  const connection = await promisePool.getConnection();
+  const client = await pool.connect();
   try {
-    await connection.beginTransaction();
-    await connection.execute('DELETE FROM Comments WHERE user_id = ?;', [id]);
-    await connection.execute('DELETE FROM Likes WHERE user_id = ?;', [id]);
-    await connection.execute('DELETE FROM Ratings WHERE user_id = ?;', [id]);
-    await connection.execute(
-      'DELETE FROM Comments WHERE media_id IN (SELECT media_id FROM MediaItems WHERE user_id = ?);',
-      [id]
-    );
-    await connection.execute(
-      'DELETE FROM Likes WHERE media_id IN (SELECT media_id FROM MediaItems WHERE user_id = ?);',
-      [id]
-    );
-    await connection.execute(
-      'DELETE FROM Ratings WHERE media_id IN (SELECT media_id FROM MediaItems WHERE user_id = ?);',
-      [id]
-    );
-    await connection.execute(
-      'DELETE FROM MediaItemTags WHERE media_id IN (SELECT media_id FROM MediaItems WHERE user_id = ?);',
-      [id]
-    );
-    await connection.execute('DELETE FROM MediaItems WHERE user_id = ?;', [id]);
-    const [result] = await connection.execute<ResultSetHeader>(
-      'DELETE FROM Users WHERE user_id = ?;',
+    await client.query('BEGIN');
+
+    // Deleting related data before deleting user
+    await client.query('DELETE FROM user_cards WHERE user_id = $1', [id]);
+    await client.query('DELETE FROM decks WHERE user_id = $1', [id]);
+    await client.query(
+      'DELETE FROM lobbies WHERE creator_id = $1 OR opponent_id = $1',
       [id]
     );
 
-    await connection.commit();
+    // Delete the user
+    const result = await client.query('DELETE FROM users WHERE user_id = $1', [
+      id,
+    ]);
 
-    if (result.affectedRows === 0) {
-      return null;
-    }
+    await client.query('COMMIT');
 
-    console.log('result', result);
-    return {message: 'User deleted', user: {user_id: id}};
+    return result.rowCount! > 0
+      ? {message: 'User deleted', user: {user_id: id}}
+      : null;
   } catch (e) {
-    await connection.rollback();
-    throw e;
+    await client.query('ROLLBACK');
+    console.error('deleteUser error', (e as Error).message);
+    throw new Error((e as Error).message);
   } finally {
-    connection.release();
+    client.release();
   }
 };
 

@@ -4,12 +4,10 @@ import {
   checkToken,
   checkUsernameExists,
   userDelete,
-  userDeleteAsAdmin,
   userGet,
   userListGet,
   userPost,
   userPut,
-  userPutAsAdmin,
 } from '../controllers/userController';
 import {authenticate} from '../../middlewares';
 import {body, param} from 'express-validator';
@@ -220,86 +218,6 @@ router.get('/token', authenticate, checkToken);
 router.route('/:id').get(param('id').isNumeric(), userGet);
 
 /**
- * @api {put} /users/:id Update User As Admin
- * @apiName UpdateUserAsAdmin
- * @apiGroup User
- * @apiPermission admin
- *
- * @apiHeader {String} Authorization Users unique access-token (Bearer Token).
- *
- * @apiParam {Number} id User's unique ID.
- *
- * @apiParam (Request body) {Object} user User's information.
- * @apiParam (Request body) {String} [user.username] Username of the User.
- * @apiParam (Request body) {String} [user.password] Password of the User.
- * @apiParam (Request body) {String} [user.email] Email of the User.
- *
- * @apiParamExample {json} Request-Example:
- *     {
- *         "username": "UpdatedUser",
- *         "password": "updatedPassword",
- *         "email": "updateduser@example.com"
- *     }
- *
- * @apiSuccess {String} message Success message.
- * @apiSuccess {Object} user User's information.
- * @apiSuccess {Number} user.user_id User's unique ID.
- * @apiSuccess {String} user.username User's username.
- * @apiSuccess {String} user.email User's email.
- * @apiSuccess {Date} user.created_at Timestamp when the user was created.
- * @apiSuccess {String} user.level_name User's level.
- *
- * @apiSuccessExample {json} Success-Response:
- *     HTTP/1.1 200 OK
- *     {
- *       "message": "user updated",
- *       "user": {
- *         "user_id": 5,
- *         "username": "testuser",
- *         "email": "ile@mail.fi",
- *         "created_at": "2024-01-01T19:24:37.000Z",
- *         "level_name": "User"
- *       }
- *     }
- */
-router
-  .route('/:id')
-  .put(
-    authenticate,
-    param('id').isNumeric(),
-    body('username').optional().isString().escape().trim().isLength({min: 3}),
-    body('password').optional().isString().escape().trim().isLength({min: 5}),
-    body('email').optional().isEmail(),
-    userPutAsAdmin
-  );
-
-/**
- * @api {delete} /users/:id Delete User as Admin
- * @apiName DeleteUserAsAdmin
- * @apiGroup User
- * @apiPermission admin
- *
- * @apiHeader {String} Authorization Users unique access-token (Bearer Token).
- * @apiParam {Number} id User's unique ID.
- *
- * @apiSuccess {String} message Success message.
- * @apiSuccess {Object} user User's information.
- * @apiSuccess {Number} user.id User's unique ID.
- *
- * @apiSuccessExample {json} Success-Response:
- *     HTTP/1.1 200 OK
- *     {
- *       "message": "user deleted",
- *       "user": {
- *         "id": 1
- *       }
- *     }
- */
-router
-  .route('/:id')
-  .delete(authenticate, param('id').isNumeric(), userDeleteAsAdmin);
-
-/**
  * @api {get} /users/email Check Email
  * @apiName CheckEmail
  * @apiGroup User
@@ -325,30 +243,6 @@ router
  */
 router.get('/email/:email', param('email').isEmail(), checkEmailExists);
 
-/**
- * @api {get} /users/username Check Username
- * @apiName CheckUsername
- * @apiGroup User
- * @apiPermission admin
- *
- * @apiParam {String} username User's username.
- *
- * @apiSuccess {String} message Success message.
- * @apiSuccess {Boolean} exists True if username exists, false if not.
- *
- * @apiSuccessExample {json} Success-Response:
- *    HTTP/1.1 200 OK
- *   {
- *    "available": "true"
- *  }
- *
- * @apiErrorExample {json} Error-Response:
- *    HTTP/1.1 400 Bad Request
- *  {
- *   "message": "Invalid username"
- * }
- *
- */
 router.get(
   '/username/:username',
   param('username').isString().escape(),

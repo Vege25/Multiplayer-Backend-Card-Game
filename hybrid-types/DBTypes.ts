@@ -121,7 +121,9 @@ type GameGrid = {
 };
 
 // User with rank and user_rank_id removed
-type UserWithRank = Omit<User, 'user_rank_id'> & { rank: Rank };
+type UserWithRank = Omit<User, 'user_rank_id'> & {
+  rank_name: Rank['rank_name'];
+};
 
 type UserWithNoPassword = Omit<UserWithRank, 'password'>;
 

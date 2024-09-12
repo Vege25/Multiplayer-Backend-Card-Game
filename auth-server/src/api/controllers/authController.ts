@@ -4,7 +4,7 @@ import {NextFunction, Request, Response} from 'express';
 import CustomError from '../../classes/CustomError';
 import {LoginResponse} from '@sharedTypes/MessageTypes';
 import {getUserByUsername} from '../models/userModel';
-import {UserWithLevel, TokenContent} from '@sharedTypes/DBTypes';
+import {UserWithRank, TokenContent} from '@sharedTypes/DBTypes';
 import {validationResult} from 'express-validator';
 
 const login = async (
@@ -41,17 +41,26 @@ const login = async (
       return;
     }
 
+    // Check if rank exists before proceeding
+    if (!user.rank_name) {
+      next(new CustomError('User has no associated rank', 403));
+      return;
+    }
+
     // delete user.password before sending data back to client
-    const outUser: Omit<UserWithLevel, 'password'> = {
+    const outUser: Omit<UserWithRank, 'password'> = {
       user_id: user.user_id,
       username: user.username,
       created_at: user.created_at,
-      level_name: user.level_name,
+      rank_name: user.rank_name,
+      email: user.email,
+      in_game_currency: user.in_game_currency,
+      experience: user.experience,
     };
 
     const tokenContent: TokenContent = {
       user_id: user.user_id,
-      level_name: user.level_name,
+      rank_name: user.rank_name,
     };
 
     const token = jwt.sign(tokenContent, process.env.JWT_SECRET);

@@ -7,4 +7,8 @@ const router = express.Router();
 // Route to handle lobby requests
 router.route('/').post(authenticate, handleLobbyRequest);
 
+router.get('/test', (req, res) => {
+  res.send({message: 'Game API - 👋🌎🌍🌏'});
+});
+
 export default router;
